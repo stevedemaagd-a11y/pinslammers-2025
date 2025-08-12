@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>PinSlammers 2025 — Compat</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0e1624;color:#e8eef5}
+  .top{background:#121b2b;border-bottom:1px solid #1f2a3a;color:#e8eef5}
+  .wrap{max-width:1120px;margin:0 auto;padding:10px 12px}
+  .row{display:flex;align-items:center;justify-content:space-between}
+  .tabs{margin:8px 0}
+  .tabs button{margin:0 6px 6px 0;padding:8px 12px;border-radius:16px;border:1px solid #324055;background:#152036;color:#c9d2dc;cursor:pointer}
+  .tabs button.active{background:#2d3b59;color:#fff;border-color:#2d3b59}
+  .card{background:#121b2b;border:1px solid #223047;border-radius:10px;padding:12px;margin-top:12px}
+  .muted{color:#9fb0c5;font-size:12px}
+  .grid{overflow:auto}
+  table{border-collapse:collapse;width:100%;min-width:760px}
+  th,td{border:1px solid #223047;padding:6px 8px;text-align:center}
+  thead th{background:#1a2740}
+  tbody tr:nth-child(even){background:#0f1828}
+  td.left,th.left{text-align:left}
+  .btn{padding:8px 12px;border:1px solid #324055;background:#152036;color:#e8eef5;border-radius:8px;cursor:pointer}
+  code{background:#0f1828;padding:2px 4px;border-radius:4px}
+</style>
+</head>
+<body>
+  <div class='top'>
+    <div class='wrap row'>
+      <div><strong>PinSlammers</strong> <span class='muted'>• Quail Ridge League 2025</span></div>
+      <div class='tabs'>
+        <button id='tab_upload' class='active'>Upload</button>
+        <button id='tab_leader'>Leaderboard 2025</button>
+        <button id='tab_scores'>Scores 2025</button>
+      </div>
+    </div>
+  </div>
+
+  <div class='wrap'>
+    <div id='view'>Loading…</div>
+  </div>
+
+<script>
+(function(){
+  // ---- Conservative ES5 only (works in restricted viewers if JS allowed) ----
+  var Teams=[{id:1,name:'Pac/Jack'},{id:2,name:'Ryan/Steve'},{id:3,name:'Kevin/Brian'},{id:4,name:'Jeff/Brian'},{id:5,name:'Tom/Mead'},{id:6,name:'Brock/Mason'},{id:7,name:'Austin/Justin'},{id:8,name:'Steve/Jason'},{id:9,name:'Chase/Brady'},{id:10,name:'Doug/John'},{id:11,name:'Andrew/Mike H'},{id:12,name:'Tedros/Chris'}];
+  var byId={},byName={}; for(var i=0;i<Teams.length;i++){byId[Teams[i].id]=Teams[i].name;byName[Teams[i].name.toLowerCase()]=Teams[i].id;}
+  var H1Weeks=[1,2,3,4,5,6,7,8], H2Weeks=[10,11,12,13,14,15,16,17,18];
+
+  // Seed from your PDF (Weeks 1–8, 10–14)
+  var H1={1:[3,2.5,6,5.5,4,3.5,4.5,7],2:[7,8,4.5,2.5,4.5,3,5.5,0],3:[3.5,2.5,3.5,7.5,6.5,7.5,6,4],4:[3,2,3,4,0,6.5,4.5,6],5:[7.5,7.5,5.5,1.5,3.5,6,4.5,5],6:[6,7.5,4,6,6,8,4.5,5],7:[4,7,7,3,5.5,7,4,10],8:[7,7,6.5,4.5,6,6,5.5,0],9:[6.5,3,4.5,4,10,4,5.5,3],10:[3,3,6,8.5,4.5,2.5,4,0],11:[7,3,4,7,5.5,4,6,7],12:[2.5,7,5.5,6,4,2,5.5,3]};
+  var H2={1:[7,6.5,3.5,5],2:[4.5,6.5,2.5,3.5],3:[3.5,6,6.5,7.5],4:[5.5,4.5,5.5,2.5],5:[4.5,4,6.5,5],6:[5.5,7,6.5,6],7:[3,3,6.5,5],8:[4.5,3.5,3.5,5],9:[2.5,4,7.5,4],10:[5.5,3.5,4.5,6.5],11:[7.5,5.5,3.5,2.5],12:[6.5,6,3.5,7.5]};
+
+  // Local storage (if permitted)
+  var LS_OK=true; try{localStorage.setItem('_ps_t','1');localStorage.removeItem('_ps_t');}catch(e){LS_OK=false;}
+  function persist(){if(!LS_OK)return;try{localStorage.setItem('ps_H1',JSON.stringify(H1));localStorage.setItem('ps_H2',JSON.stringify(H2));}catch(e){}}
+  (function loadSaved(){if(!LS_OK)return;try{var a=localStorage.getItem('ps_H1');if(a)H1=JSON.parse(a);var b=localStorage.getItem('ps_H2');if(b)H2=JSON.parse(b);}catch(e){}})();
+
+  var active='upload', view=document.getElementById('view');
+
+  function sum(a){for(var s=0,i=0;i<a.length;i++){var v=parseFloat(a[i]);if(!isNaN(v))s+=v;}return s;}
+  function clear(el){while(el.firstChild)el.removeChild(el.firstChild);}
+
+  function buildHalf(which){
+    var dict=which==='H1'?H1:H2; var weeks=which==='H1'?H1Weeks:H2Weeks;
+    var rows=[], max=1;
+    for(var tid in dict){if(!dict.hasOwnProperty(tid))continue;
+      var pts=dict[tid]||[], padded=pts.slice(0); while(padded.length<weeks.length)padded.push('');
+      var total=sum(padded); rows.push({id:parseInt(tid,10),name:byId[tid]||('Team '+tid),pts:padded,total:total}); if(total>max)max=total;
+    }
+    rows.sort(function(a,b){return b.total-a.total;});
+    return {weeks:weeks,rows:rows,max:max};
+  }
+
+  function render(){clear(view); if(active==='leader'){renderLeader();return;} if(active==='scores'){renderScores();return;} renderUpload();}
+  function setTab(name){active=name;document.getElementById('tab_upload').className=name==='upload'?'active':'';document.getElementById('tab_leader').className=name==='leader'?'active':'';document.getElementById('tab_scores').className=name==='scores'?'active':'';render();}
+
+  function renderLeader(){
+    var h1=buildHalf('H1'), h2=buildHalf('H2');
+    var c1=document.createElement('div'); c1.className='card'; c1.innerHTML='<strong>First Half • Weeks 1–8</strong>'; c1.appendChild(makeTable(h1)); view.appendChild(c1);
+    var c2=document.createElement('div'); c2.className='card'; c2.innerHTML='<strong>Second Half • Weeks 10–18</strong>'; c2.appendChild(makeTable(h2)); view.appendChild(c2);
+  }
+  function makeTable(data){
+    var table=document.createElement('table'), thead=document.createElement('thead'), trh=document.createElement('tr'), th, td, i;
+    th=document.createElement('th'); th.appendChild(document.createTextNode('Place')); trh.appendChild(th);
+    th=document.createElement('th'); th.className='left'; th.appendChild(document.createTextNode('Team')); trh.appendChild(th);
+    for(i=0;i<data.weeks.length;i++){ th=document.createElement('th'); th.appendChild(document.createTextNode('W'+data.weeks[i])); trh.appendChild(th); }
+    th=document.createElement('th'); th.appendChild(document.createTextNode('Total')); trh.appendChild(th);
+    thead.appendChild(trh); table.appendChild(thead);
+    var tbody=document.createElement('tbody');
+    for(var r=0;r<data.rows.length;r++){
+      var row=data.rows[r], tr=document.createElement('tr');
+      td=document.createElement('td'); td.appendChild(document.createTextNode('#'+(r+1))); tr.appendChild(td);
+      td=document.createElement('td'); td.className='left'; td.appendChild(document.createTextNode(row.name)); tr.appendChild(td);
+      for(i=0;i<data.weeks.length;i++){ td=document.createElement('td'); td.appendChild(document.createTextNode(row.pts[i]===''?'':row.pts[i])); tr.appendChild(td); }
+      td=document.createElement('td'); td.appendChild(document.createTextNode(row.total)); tr.appendChild(td);
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody); var wrap=document.createElement('div'); wrap.className='grid'; wrap.appendChild(table); return wrap;
+  }
+
+  function renderScores(){
+    var weeks=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18];
+    var card=document.createElement('div'); card.className='card'; var title=document.createElement('div'); title.innerHTML='<strong>Weekly Points</strong>'; card.appendChild(title);
+    var table=document.createElement('table'), thead=document.createElement('thead'), trh=document.createElement('tr'), th, td, i;
+    th=document.createElement('th'); th.className='left'; th.appendChild(document.createTextNode('Team')); trh.appendChild(th);
+    for(i=0;i<weeks.length;i++){ th=document.createElement('th'); th.appendChild(document.createTextNode('W'+weeks[i])); trh.appendChild(th); }
+    th=document.createElement('th'); th.appendChild(document.createTextNode('Total')); trh.appendChild(th);
+    thead.appendChild(trh); table.appendChild(thead);
+    var tbody=document.createElement('tbody');
+    for(var t=0;t<Teams.length;t++){
+      var team=Teams[t], tr=document.createElement('tr'); td=document.createElement('td'); td.className='left'; td.appendChild(document.createTextNode(team.name)); tr.appendChild(td);
+      var tot=0;
+      for(i=0;i<weeks.length;i++){
+        var w=weeks[i], v='';
+        if(w<=8){ v=(H1[team.id]||[])[w-1]; }
+        else if(w>=10){ var idx=[10,11,12,13,14,15,16,17,18].indexOf(w); v=(H2[team.id]||[])[idx]; }
+        if(typeof v==='number'){ tot+=v; }
+        td=document.createElement('td'); td.appendChild(document.createTextNode(v===undefined?'':(v==='')?'':v)); tr.appendChild(td);
+      }
+      td=document.createElement('td'); td.appendChild(document.createTextNode(tot)); tr.appendChild(td);
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody); var wrap=document.createElement('div'); wrap.className='grid'; wrap.appendChild(table); card.appendChild(wrap);
+    var p=document.createElement('div'); p.className='muted'; p.style.marginTop='6px'; p.appendChild(document.createTextNode('Tip: Weeks 9 & playoffs can be added when available.')); card.appendChild(p);
+    view.appendChild(card);
+  }
+
+  function renderUpload(){
+    var card=document.createElement('div'); card.className='card';
+    var h=document.createElement('div'); h.innerHTML='<strong>Upload CSV or JSON</strong> <span class="muted">(updates local standings)</span>'; card.appendChild(h);
+    var controls=document.createElement('div'); controls.style.marginTop='8px';
+    var file=document.createElement('input'); file.type='file'; file.id='filePoints'; file.accept='.csv,application/json,text/csv,application/*+json';
+    var fileLabel=document.createElement('label'); fileLabel.className='btn'; fileLabel.htmlFor='filePoints'; fileLabel.appendChild(document.createTextNode('Choose File'));
+    controls.appendChild(fileLabel); controls.appendChild(file);
+    var exportBtn=document.createElement('button'); exportBtn.className='btn'; exportBtn.style.marginLeft='8px'; exportBtn.appendChild(document.createTextNode('Export Current JSON')); controls.appendChild(exportBtn);
+    card.appendChild(controls);
+    var tip=document.createElement('div'); tip.className='muted'; tip.style.marginTop='6px'; tip.innerHTML='CSV example: <code>10,Pac/Jack,7</code> or <code>10,1,7</code>'; card.appendChild(tip);
+    var msg=document.createElement('div'); msg.id='uploadMsg'; msg.className='muted'; msg.style.marginTop='8px'; card.appendChild(msg);
+    view.appendChild(card);
+
+    file.addEventListener('change', onPointsFile, false);
+    exportBtn.onclick=function(){
+      var data=JSON.stringify({H1:H1,H2:H2},null,2);
+      var blob=new Blob([data],{type:'application/json'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a'); a.href=url; a.download='pinslammers_2025_points.json'; document.body.appendChild(a); a.click(); a.parentNode.removeChild(a);
+      setTimeout(function(){URL.revokeObjectURL(url);},500);
+    };
+  }
+
+  function onPointsFile(ev){
+    var f=ev.target.files&&ev.target.files[0]; var msg=document.getElementById('uploadMsg'); if(!f){msg.innerHTML='No file selected.';return;}
+    var reader=new FileReader(); reader.onload=function(){ var text=reader.result, res, count=0, errors=[];
+      try{
+        if(/\.csv$/i.test(f.name)||/text\/csv/.test(f.type)){ res=parseCSV(text); count=res.count; errors=res.errors; }
+        else { res=parseJSON(JSON.parse(text)); count=res.count; errors=res.errors; }
+        persist();
+        msg.innerHTML='<span style="color:#19c37d">Imported '+count+' rows.</span>'+(errors.length?' <span style="color:#ff5757">Errors: '+errors.length+'</span>':'');
+        setTab('leader');
+      }catch(e){ msg.innerHTML='<span style="color:#ff5757">Failed: '+(e.message||e)+'</span>'; }
+    }; reader.readAsText(f);
+  }
+
+  function mergeEntry(week, teamKey, points){
+    if(!week || isNaN(points)){return {ok:false,msg:'Missing week/points'};}
+    var teamId=null;
+    if(typeof teamKey==='number' || (/^\d+$/.test(String(teamKey)))){ if(byId[parseInt(teamKey,10)]) teamId=parseInt(teamKey,10); }
+    else { var key=String(teamKey).toLowerCase(); if(byName[key]) teamId=byName[key]; }
+    if(!teamId) return {ok:false,msg:'Unknown team: '+teamKey};
+    if(week>=1 && week<=8){ var arr=H1[teamId]||(H1[teamId]=[]); arr[week-1]=points; return {ok:true}; }
+    if(week>=10 && week<=18){ var idx=[10,11,12,13,14,15,16,17,18].indexOf(week); if(idx<0) return {ok:false,msg:'Bad week'}; var arr2=H2[teamId]||(H2[teamId]=[]); arr2[idx]=points; return {ok:true}; }
+    return {ok:false,msg:'Week must be 1–8 or 10–18'};
+  }
+
+  function parseCSV(text){
+    var lines=text.split(/\r?\n/), count=0, errors=[];
+    for(var i=0;i<lines.length;i++){ var r=lines[i]; if(!r||!r.replace(/\s+/g,'')) continue;
+      var parts=r.split(','), week=parseInt(parts[0],10), team=(parts[1]||'').trim(), pts=parseFloat(parts[2]);
+      var res=mergeEntry(week,team,pts); if(res.ok) count++; else errors.push(res.msg+' @ '+r);
+    }
+    return {count:count,errors:errors};
+  }
+  function parseJSON(obj){
+    var count=0, errors=[];
+    if(obj && obj.entries && obj.entries.length){ for(var i=0;i<obj.entries.length;i++){ var e=obj.entries[i]; var r=mergeEntry(parseInt(e.week,10), e.team, parseFloat(e.points)); if(r.ok)count++; else errors.push(r.msg+' @ '+JSON.stringify(e)); } return {count:count,errors:errors}; }
+    if(obj && (obj.H1||obj.H2)){
+      if(obj.H1){ for(var tid in obj.H1){ if(!obj.H1.hasOwnProperty(tid))continue; var arr=obj.H1[tid]||[]; for(var j=0;j<arr.length;j++){ var v=arr[j]; if(v!==''&&typeof v!=='undefined'){ var r1=mergeEntry(j+1,parseInt(tid,10),parseFloat(v)); if(r1.ok)count++; else errors.push(r1.msg); } } } }
+      if(obj.H2){ var map=[10,11,12,13,14,15,16,17,18]; for(var tid2 in obj.H2){ if(!obj.H2.hasOwnProperty(tid2))continue; var arr2=obj.H2[tid2]||[]; for(var k=0;k<arr2.length;k++){ var v2=arr2[k]; if(v2!==''&&typeof v2!=='undefined'){ var r2=mergeEntry(map[k],parseInt(tid2,10),parseFloat(v2)); if(r2.ok)count++; else errors.push(r2.msg); } } } }
+      return {count:count,errors:errors};
+    }
+    errors.push('Unrecognized JSON shape'); return {count:count,errors:errors};
+  }
+
+  // Tab handlers
+  document.getElementById('tab_upload').onclick=function(){setTab('upload');};
+  document.getElementById('tab_leader').onclick=function(){setTab('leader');};
+  document.getElementById('tab_scores').onclick=function(){setTab('scores');};
+
+  // Initial render
+  render();
+})();
+</script>
+</body>
+</html>
